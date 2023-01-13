@@ -1,0 +1,3 @@
+[submodule "TeleBoard"]
+	path = TeleBoard
+	url = https://github.com/WideLearning/TeleBoard
