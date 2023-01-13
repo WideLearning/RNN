@@ -23,6 +23,8 @@ trainer = TeacherForcingTrainer(
     dl_train=dl_train,
     dl_val=dl_val,
     tracker=ConsoleTracker(k=1, regex=".*/loss"),
+    train_batches=100,
+    val_batches=10
 )
 
 
