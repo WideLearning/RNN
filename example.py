@@ -9,13 +9,13 @@ from TeleBoard.tracker import ConsoleTracker
 from trainer import TeacherForcingTrainer
 
 dl_train, dl_val = ptb_loaders(
-    n_seq=10,
-    n_batch=1024,
+    seq_len=5,
+    batch_size=1024,
 )
 net = RNN(
-    n_x=128,
-    n_h=256,
-    n_y=128,
+    x_size=128,
+    h_size=1024,
+    y_size=128,
 )
 trainer = TeacherForcingTrainer(
     net=net,
@@ -40,7 +40,7 @@ for epoch in range(100):
         print(f"Epoch #{epoch}")
         prompt = "The quick brown"
         onehot = [to_onehot(ord(c)) for c in prompt]
-        state = net.init_state(std=0, n_batch=1)
+        state = net.init_state(std=0,batch_size=1)
         logprobs = None
         for x in onehot:
             logprobs, state = net(x, state)
