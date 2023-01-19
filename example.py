@@ -5,12 +5,12 @@ from tqdm import tqdm
 
 from data import ptb_loaders
 from model import RNN
-from TeleBoard.tracker import ConsoleTracker
+from TeleBoard.tracker import FileTracker
 from trainer import TeacherForcingTrainer
 
 dl_train, dl_val = ptb_loaders(
     seq_len=5,
-    batch_size=1024,
+    batch_size=128,
 )
 net = RNN(
     x_size=128,
@@ -22,7 +22,7 @@ trainer = TeacherForcingTrainer(
     make_opt=lambda p: torch.optim.Adam(p),
     dl_train=dl_train,
     dl_val=dl_val,
-    tracker=ConsoleTracker(k=1, regex=".*/loss"),
+    tracker=FileTracker(k=5, filename="save.p"),
     train_batches=100,
     val_batches=10
 )

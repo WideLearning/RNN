@@ -30,6 +30,7 @@ class TeacherForcingTrainer:
     def train(self, n_epochs):
         for it in tqdm(range(n_epochs)):
             self.net.train()
+            losses = []
             for x, y in islice(self.dl_train, self.train_batches):
                 batch_size, seq_len = y.shape
                 state = self.net.init_state(std=1, batch_size=batch_size)
@@ -39,14 +40,16 @@ class TeacherForcingTrainer:
                     p, state = self.net(x[:, pos], state)
                     loss += self.loss_fn(p, y[:, pos])
                 loss /= batch_size
+                losses.append(loss.item())
 
                 self.opt.zero_grad()
                 loss.backward()
                 self.opt.step()
-                self.tracker.scalar("train/loss", loss)
 
+            self.tracker.scalar("train/loss", sum(losses) / len(losses))
             self.tracker.model(self.net)
             self.net.eval()
+            losses.clear()
             with torch.no_grad():
                 for x, y in islice(self.dl_val, self.val_batches):
                     batch_size, seq_len = y.shape
@@ -57,5 +60,6 @@ class TeacherForcingTrainer:
                         p, state = self.net(x[:, pos], state)
                         loss += self.loss_fn(p, y[:, pos])
                     loss /= batch_size
-
-                    self.tracker.scalar("val/loss", loss)
+                    losses.append(loss.item())
+            self.tracker.scalar("val/loss", sum(losses) / len(lossesyy))
+        self.tracker.dump()
