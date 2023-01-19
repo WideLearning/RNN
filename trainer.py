@@ -17,10 +17,12 @@ class TeacherForcingTrainer:
         val_batches=10**9,
     ):
         self.net = net
+        self.tracker = tracker
+        self.tracker.set_hooks(net)
+
         self.opt = make_opt(self.net.parameters())
         self.dl_train = dl_train
         self.dl_val = dl_val
-        self.tracker = tracker
         self.train_batches = train_batches
         self.val_batches = val_batches
         self.loss_fn = nn.NLLLoss(reduction="sum")
@@ -41,9 +43,9 @@ class TeacherForcingTrainer:
                 self.opt.zero_grad()
                 loss.backward()
                 self.opt.step()
-
                 self.tracker.scalar("train/loss", loss)
 
+            self.tracker.model(self.net)
             self.net.eval()
             with torch.no_grad():
                 for x, y in islice(self.dl_val, self.val_batches):
