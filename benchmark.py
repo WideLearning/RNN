@@ -5,7 +5,7 @@ from torch import nn
 from tqdm import tqdm
 
 from data import xor_loaders
-from model import RNN, LSTM
+from model import LSTM, RNN
 from TeleBoard.tracker import ConsoleTracker
 from trainer import TeacherForcingTrainer
 
@@ -15,29 +15,28 @@ dl_train, dl_val = xor_loaders(
     batch_size=128,
 )
 
-net = RNN(
-    x_size=2,
-    h_size=1024,
-    y_size=2,
-    config={
-        "f_hh": "tanh",
-        "f_hy": "logsoftmax",
-        "hh_sg": False,
-        "xh_sg": True,
-    },
-)
-
-# net = LSTM(
+# net = RNN(
 #     x_size=2,
-#     h_size=1024,
+#     h_size=4,
 #     y_size=2,
 #     config={
 #         "f_hh": "tanh",
 #         "f_hy": "logsoftmax",
-#         "hh_sg": False,
-#         "xh_sg": True,
 #     },
 # )
+
+net = LSTM(
+    x_size=2,
+    h_size=4,
+    y_size=2,
+    config={
+        "f_hh": "tanh",
+        "f_hy": "logsoftmax",
+        "i_bias": 1.63,
+        "o_bias": 0.8,
+        "f_bias": -0.88,
+    },
+)
 
 trainer = TeacherForcingTrainer(
     net=net,
@@ -49,4 +48,7 @@ trainer = TeacherForcingTrainer(
     val_batches=10,
 )
 
-trainer.train(n_epochs=10)
+trainer.train(n_epochs=100)
+
+for name, param in net.named_parameters():
+    print(name, param.mean(), param.std())
