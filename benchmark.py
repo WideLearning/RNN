@@ -5,7 +5,7 @@ from torch import nn
 from tqdm import tqdm
 
 from data import xor_loaders
-from model import RNN
+from model import RNN, LSTM
 from TeleBoard.tracker import ConsoleTracker
 from trainer import TeacherForcingTrainer
 
@@ -19,11 +19,26 @@ net = RNN(
     x_size=2,
     h_size=1024,
     y_size=2,
-    f_hh=nn.Tanh(),
-    hh_sg=False,
-    f_hy=nn.LogSoftmax(dim=-1),
-    xh_sg=True,
+    config={
+        "f_hh": "tanh",
+        "f_hy": "logsoftmax",
+        "hh_sg": False,
+        "xh_sg": True,
+    },
 )
+
+# net = LSTM(
+#     x_size=2,
+#     h_size=1024,
+#     y_size=2,
+#     config={
+#         "f_hh": "tanh",
+#         "f_hy": "logsoftmax",
+#         "hh_sg": False,
+#         "xh_sg": True,
+#     },
+# )
+
 trainer = TeacherForcingTrainer(
     net=net,
     make_opt=lambda p: torch.optim.Adam(p),

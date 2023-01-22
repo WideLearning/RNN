@@ -61,5 +61,5 @@ class TeacherForcingTrainer:
                         loss += self.loss_fn(p, y[:, pos])
                     loss /= batch_size
                     losses.append(loss.item())
-            self.tracker.scalar("val/loss", sum(losses) / len(lossesyy))
+            self.tracker.scalar("val/loss", sum(losses) / len(losses))
         self.tracker.dump()
