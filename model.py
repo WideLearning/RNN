@@ -26,6 +26,8 @@ activations_dict = {
 }
 
 """
+Simple recursive network.
+
 Available extra configurations (for activation names see activations_dict):
 hh_sg: True to cut gradients in recurrent connection, False by default
 xh_sg: True to cut gradients in input connection, False by default
@@ -37,8 +39,8 @@ f_hy: activation for output connection, logsoftmax by default
 class RNN(nn.Module):
     def __init__(self, x_size, h_size, y_size, config):
         super().__init__()
-        self.h_size = h_size
         self.x_size = x_size
+        self.h_size = h_size
         self.y_size = y_size
 
         self.hh_sg = config.get("hh_sg", False)
@@ -58,6 +60,24 @@ class RNN(nn.Module):
 
     def init_state(self, std=0, batch_size=1):
         return torch.randn((batch_size, self.h_size)) * std
+
+
+"""
+RNN with constant error carousel (or LSTM without gates).
+
+Available extra configurations same as for RNN.
+"""
+
+
+class CEC(RNN):
+    def __init__(self, x_size, h_size, y_size, config):
+        super().__init__(x_size, h_size, y_size)
+
+    def forward(self, x, state):
+        state_linear = sg(self.W_hh(state), self.hh_sg)
+        input_linear = sg(self.W_xh(x), self.xh_sg)
+        new_state = state + self.f_hh(state_linear + input_linear)
+        return self.f_hy(self.W_hy(new_state)), new_state
 
 
 """
