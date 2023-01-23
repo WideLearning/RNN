@@ -5,7 +5,7 @@ from torch import nn
 from tqdm import tqdm
 
 from data import xor_loaders
-from model import LSTM, RNN
+from model import LSTM, CEC, RNN
 from TeleBoard.tracker import ConsoleTracker
 from trainer import TeacherForcingTrainer
 
@@ -25,7 +25,7 @@ dl_train, dl_val = xor_loaders(
 #     },
 # )
 
-net = LSTM(
+net = CEC(
     x_size=2,
     h_size=4,
     y_size=2,

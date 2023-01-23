@@ -52,14 +52,19 @@ class RNN(nn.Module):
         self.W_xh = nn.Linear(self.x_size, self.h_size)
         self.W_hy = nn.Linear(self.h_size, self.y_size)
 
-    def forward(self, x, state):
+    def _get_new_state(self, x, state):
         state_linear = sg(self.W_hh(state), self.hh_sg)
         input_linear = sg(self.W_xh(x), self.xh_sg)
-        new_state = self.f_hh(state_linear + input_linear)
-        return self.f_hy(self.W_hy(new_state)), new_state
+        return self.f_hh(state_linear + input_linear)
 
     def init_state(self, std=0, batch_size=1):
         return torch.randn((batch_size, self.h_size)) * std
+
+    def forward(self, x, state):
+        new_state = self._get_new_state(x, state)
+        return self.f_hy(self.W_hy(new_state)), new_state
+
+    
 
 
 """
@@ -70,13 +75,11 @@ Available extra configurations same as for RNN.
 
 
 class CEC(RNN):
-    def __init__(self, x_size, h_size, y_size, config):
-        super().__init__(x_size, h_size, y_size)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def forward(self, x, state):
-        state_linear = sg(self.W_hh(state), self.hh_sg)
-        input_linear = sg(self.W_xh(x), self.xh_sg)
-        new_state = state + self.f_hh(state_linear + input_linear)
+        new_state = state + self._get_new_state(x, state)
         return self.f_hy(self.W_hy(new_state)), new_state
 
 
