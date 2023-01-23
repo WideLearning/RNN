@@ -12,7 +12,7 @@ from trainer import TeacherForcingTrainer
 dl_train, dl_val = xor_loaders(
     seq_count=10**4,
     seq_len=10,
-    batch_size=128,
+    batch_size=1024,
 )
 
 # net = RNN(
@@ -25,7 +25,7 @@ dl_train, dl_val = xor_loaders(
 #     },
 # )
 
-net = CECA(
+net = LSTM(
     x_size=2,
     h_size=64,
     y_size=2,
@@ -41,11 +41,11 @@ trainer = TeacherForcingTrainer(
     dl_train=dl_train,
     dl_val=dl_val,
     tracker=ConsoleTracker(k=1, regex=".*/loss"),
-    train_batches=100,
-    val_batches=10,
+    train_batches=10,
+    val_batches=3,
 )
 
-trainer.train(n_epochs=100)
+trainer.train(n_epochs=10000)
 
 for name, param in net.named_parameters():
     print(name, param.mean(), param.std())
