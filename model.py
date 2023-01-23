@@ -64,8 +64,6 @@ class RNN(nn.Module):
         new_state = self._get_new_state(x, state)
         return self.f_hy(self.W_hy(new_state)), new_state
 
-    
-
 
 """
 RNN with constant error carousel (or LSTM without gates).
@@ -75,8 +73,8 @@ Available extra configurations same as for RNN.
 
 
 class CEC(RNN):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, x_size, h_size, y_size, config):
+        super().__init__(x_size, h_size, y_size, config)
 
     def forward(self, x, state):
         new_state = state + self._get_new_state(x, state)
@@ -84,6 +82,26 @@ class CEC(RNN):
 
 
 """
+RNN with constant error carousel (or LSTM without gates), but after updating a state with new information there is an extra activation.
+
+Available extra configurations same as for RNN, plus:
+f_s: activation for state
+"""
+
+
+class CECA(RNN):
+    def __init__(self, x_size, h_size, y_size, config):
+        super().__init__(x_size, h_size, y_size, config)
+        self.f_s = activations_dict[config.get("f_s", "tanh")]
+
+    def forward(self, x, state):
+        new_state = self.f_s(state + self._get_new_state(x, state))
+        return self.f_hy(self.W_hy(new_state)), new_state
+
+
+"""
+Long short-term memory network: CEC + gates.
+
 Available extra configurations:
 i_sg: True to cut gradients for input gate, False by default
 f_sg: True to cut gradients for forget gate, False by default
@@ -128,7 +146,7 @@ class LSTM(nn.Module):
         self.W_ci = nn.Linear(self.x_size + self.h_size, self.h_size)
         self.W_hy = nn.Linear(self.h_size, self.y_size)
 
-    def forward(self, x, state):
+    def _get_new_state(self, x, state):
         h, c = state
         s = torch.cat((x, h), dim=-1)
 
@@ -136,12 +154,35 @@ class LSTM(nn.Module):
         f_gate = sg(self.f_sf(self.W_sf(s) + self.f_bias), self.f_sg)
         o_gate = sg(self.f_so(self.W_so(s) + self.o_bias), self.o_sg)
         update = sg(self.f_su(self.W_ci(s)), self.u_sg)
+
         new_c = f_gate * c + i_gate * update
         new_h = o_gate * self.f_ch(new_c)
-        return self.f_hy(self.W_hy(new_h)), (new_h, new_c)
+
+        return new_h, new_c
 
     def init_state(self, std=0, batch_size=1):
         return (
             torch.randn((batch_size, self.h_size)) * std,
             torch.randn((batch_size, self.h_size)) * std,
         )
+
+    def forward(self, x, state):
+        new_h, new_c = self._get_new_state(x, state)
+        return self.f_hy(self.W_hy(new_h)), (new_h, new_c)
+
+"""
+LSTM, but with extra activation for cell state.
+
+Available extra configurations same as for LSTM, plus:
+f_s: activation for state
+"""
+
+class LSTMA(LSTM):
+    def __init__(self, x_size, h_size, y_size, config):
+        super().__init__(x_size, h_size, y_size, config)
+        self.f_s = activations_dict[config.get("f_s", "tanh")]
+
+    def forward(self, x, state):
+        new_h, new_c = self._get_new_state(x, state)
+        new_c = self.f_s(new_c)
+        return self.f_hy(self.W_hy(new_h)), (new_h, new_c)
