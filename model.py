@@ -61,6 +61,7 @@ class RNN(nn.Module):
         return torch.randn((batch_size, self.h_size)) * std
 
     def forward(self, x, state):
+        assert x.dim() == 2  # (batch_size, vocab_size)
         new_state = self._get_new_state(x, state)
         return self.f_hy(self.W_hy(new_state)), new_state
 
@@ -170,12 +171,14 @@ class LSTM(nn.Module):
         new_h, new_c = self._get_new_state(x, state)
         return self.f_hy(self.W_hy(new_h)), (new_h, new_c)
 
+
 """
 LSTM, but with extra activation for cell state.
 
 Available extra configurations same as for LSTM, plus:
 f_s: activation for state
 """
+
 
 class LSTMA(LSTM):
     def __init__(self, x_size, h_size, y_size, config):
@@ -186,3 +189,52 @@ class LSTMA(LSTM):
         new_h, new_c = self._get_new_state(x, state)
         new_c = self.f_s(new_c)
         return self.f_hy(self.W_hy(new_h)), (new_h, new_c)
+
+
+"""
+Wrapper for PyTorch LSTM implementation.
+
+Available extra configurations (for activation names see activations_dict):
+f_hy: activation for output connection, logsoftmax by default
+"""
+
+
+class BaselineLSTM(nn.Module):
+    def __init__(self, x_size, h_size, y_size, config):
+        super().__init__()
+        self.x_size = x_size
+        self.h_size = h_size
+        self.y_size = y_size
+        self.num_layers = 1
+
+        self.lstm = nn.LSTM(self.x_size, self.h_size, self.num_layers, batch_first=False)
+        self.W_hy = nn.Linear(self.h_size, self.y_size)
+        self.f_hy = activations_dict[config.get("f_hy", "logsoftmax")]
+
+    def forward(self, x, state):
+        h, c = state
+        batch_size, _vocab_size = x.shape
+        x = x.unsqueeze(0)  # (seq_len, batch_size, vocab_size)
+        assert h.shape == (batch_size, self.h_size)
+        assert c.shape == (batch_size, self.h_size)
+        h = h.unsqueeze(0)  # (num_layers, batch_size, h_size)
+        c = c.unsqueeze(0)  # (num_layers, batch_size, h_size)
+
+        out_lstm, (new_h, new_c) = self.lstm(x, (h, c))
+        assert out_lstm.shape == (1, batch_size, self.h_size)
+        assert new_h.shape == (1, batch_size, self.h_size)
+        assert new_c.shape == (1, batch_size, self.h_size)
+        assert torch.allclose(out_lstm, new_h)
+
+        out = self.f_hy(self.W_hy(new_h)).squeeze(0) 
+        assert out.shape == (batch_size, self.y_size)
+        new_h = new_h.squeeze(0) # (batch_size, h_size)
+        new_c = new_c.squeeze(0) # (batch_size, h_size)
+
+        return out, (new_h, new_c)
+
+    def init_state(self, std=0, batch_size=1):
+        return (
+            torch.randn((batch_size, self.h_size)) * std,
+            torch.randn((batch_size, self.h_size)) * std,
+        )
