@@ -25,6 +25,17 @@ activations_dict = {
     "logsoftmax": nn.LogSoftmax(dim=-1),
 }
 
+
+class BaseRNN(nn.Module):
+    def __init__(self, x_size, y_size, config):
+        super().__init__()
+        self.x_size = x_size
+        self.y_size = y_size
+
+    def init_state(self, std=0, batch_size=1):
+        pass
+
+
 """
 Simple recursive network.
 
@@ -36,12 +47,10 @@ f_hy: activation for output connection, logsoftmax by default
 """
 
 
-class RNN(nn.Module):
+class RNN(BaseRNN):
     def __init__(self, x_size, h_size, y_size, config):
-        super().__init__()
-        self.x_size = x_size
+        super().__init__(x_size, y_size, config)
         self.h_size = h_size
-        self.y_size = y_size
 
         self.hh_sg = config.get("hh_sg", False)
         self.xh_sg = config.get("xh_sg", False)
@@ -120,12 +129,10 @@ f_hy: activation for output, logsoftmax by default
 """
 
 
-class LSTM(nn.Module):
+class LSTM(BaseRNN):
     def __init__(self, x_size, h_size, y_size, config):
-        super().__init__()
+        super().__init__(x_size, y_size, config)
         self.h_size = h_size
-        self.x_size = x_size
-        self.y_size = y_size
 
         self.i_sg = config.get("i_sg", False)
         self.f_sg = config.get("f_sg", False)
@@ -201,13 +208,13 @@ f_hy: activation for output connection, logsoftmax by default
 
 class BaselineLSTM(nn.Module):
     def __init__(self, x_size, h_size, y_size, config):
-        super().__init__()
-        self.x_size = x_size
+        super().__init__(x_size, y_size, config)
         self.h_size = h_size
-        self.y_size = y_size
         self.num_layers = 1
 
-        self.lstm = nn.LSTM(self.x_size, self.h_size, self.num_layers, batch_first=False)
+        self.lstm = nn.LSTM(
+            self.x_size, self.h_size, self.num_layers, batch_first=False
+        )
         self.W_hy = nn.Linear(self.h_size, self.y_size)
         self.f_hy = activations_dict[config.get("f_hy", "logsoftmax")]
 
@@ -226,10 +233,10 @@ class BaselineLSTM(nn.Module):
         assert new_c.shape == (1, batch_size, self.h_size)
         assert torch.allclose(out_lstm, new_h)
 
-        out = self.f_hy(self.W_hy(new_h)).squeeze(0) 
+        out = self.f_hy(self.W_hy(new_h)).squeeze(0)
         assert out.shape == (batch_size, self.y_size)
-        new_h = new_h.squeeze(0) # (batch_size, h_size)
-        new_c = new_c.squeeze(0) # (batch_size, h_size)
+        new_h = new_h.squeeze(0)  # (batch_size, h_size)
+        new_c = new_c.squeeze(0)  # (batch_size, h_size)
 
         return out, (new_h, new_c)
 
@@ -238,3 +245,19 @@ class BaselineLSTM(nn.Module):
             torch.randn((batch_size, self.h_size)) * std,
             torch.randn((batch_size, self.h_size)) * std,
         )
+
+
+class Layers(BaseRNN):
+    def __init__(self, rnns, config):
+        assert len(rnns)
+        super().__init__(rnns[0].x_size, rnns[-1].y_size, config)
+        self.rnns = nn.ModuleList(rnns)
+
+    def init_state(self, std=0, batch_size=1):
+        return [net.init_state(std, batch_size) for net in self.rnns]
+
+    def forward(self, x, state):
+        assert len(state) == len(self.rnns)
+        for i in range(len(state)):
+            x, state[i] = self.rnns[i](x, state[i])
+        return x, state
