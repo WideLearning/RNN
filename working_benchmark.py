@@ -35,8 +35,8 @@ BIT_LEN = 50
 VARIABLE_LEN = True
 
 # Model Parameters
-INPUT_SIZE = 1
-HIDDEN_SIZE = 4
+INPUT_SIZE = 2
+HIDDEN_SIZE = 2
 NUM_LAYERS = 1
 
 # Training Parameters
@@ -79,7 +79,7 @@ class XOR(data.Dataset):
         # else: False
         parity = (bitsum % 2 != 0).long().squeeze(2)
 
-        return bits, parity
+        return F.one_hot(bits.long().squeeze(2), num_classes=2).float(), parity
 
 class XORLSTM(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers):
@@ -109,8 +109,10 @@ optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 train_loader = DataLoader(
     XOR(TRAINING_SIZE, BIT_LEN, VARIABLE_LEN), batch_size=BATCH_SIZE
 )
-x, y = next(iter(train_loader))
-
+# x, y = next(iter(train_loader))
+# print(x.shape, x.dtype)
+# print(y.shape, y.dtype)
+# exit(0)
 
 # train
 def train():
