@@ -25,6 +25,7 @@ import torch
 import torch.nn as nn
 import torch.utils.data as data
 from torch.utils.data import DataLoader
+import torch.nn.functional as F
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 # Data
@@ -35,7 +36,7 @@ VARIABLE_LEN = True
 
 # Model Parameters
 INPUT_SIZE = 1
-HIDDEN_SIZE = 2
+HIDDEN_SIZE = 4
 NUM_LAYERS = 1
 
 # Training Parameters
@@ -76,10 +77,9 @@ class XOR(data.Dataset):
         bitsum = bits.cumsum(axis=1)
         # if bitsum[i] odd: -> True
         # else: False
-        parity = (bitsum % 2 != 0).float()
+        parity = (bitsum % 2 != 0).long().squeeze(2)
 
         return bits, parity
-
 
 class XORLSTM(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers):
@@ -88,8 +88,8 @@ class XORLSTM(nn.Module):
         self.num_layers = num_layers
 
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, 1)
-        self.activation = nn.Sigmoid()
+        self.fc = nn.Linear(hidden_size, 2)
+        self.activation = nn.LogSoftmax(dim=-1)
 
     def forward(self, x, lengths=True):
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
@@ -103,8 +103,14 @@ class XORLSTM(nn.Module):
 
 
 model = XORLSTM(INPUT_SIZE, HIDDEN_SIZE, NUM_LAYERS).to(device)
-criterion = nn.BCELoss()
+criterion = nn.NLLLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+
+train_loader = DataLoader(
+    XOR(TRAINING_SIZE, BIT_LEN, VARIABLE_LEN), batch_size=BATCH_SIZE
+)
+x, y = next(iter(train_loader))
+
 
 # train
 def train():
@@ -122,7 +128,7 @@ def train():
             features, labels = features.to(device), labels.to(device)
 
             # Forward pass
-            outputs = model(features)
+            outputs = model(features).permute(0, 2, 1)
             loss = criterion(outputs, labels)
 
             # Backward and optimize
@@ -130,7 +136,7 @@ def train():
             loss.backward()
             optimizer.step()
             accuracy = (
-                ((outputs > 0.5) == (labels > 0.5)).type(torch.FloatTensor).mean()
+                (outputs.argmax(dim=1) == (labels > 0.5)).float().mean()
             )
 
             if (step + 1) % 250 == 0:
