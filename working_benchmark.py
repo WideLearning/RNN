@@ -78,7 +78,7 @@ class XOR(data.Dataset):
         # if bitsum[i] odd: -> True
         # else: False
         parity = (bitsum % 2 != 0).long().squeeze(2)
-
+        parity[:, :-1] = -100
         return F.one_hot(bits.long().squeeze(2), num_classes=2).float(), parity
 
 class XORLSTM(nn.Module):
@@ -107,11 +107,13 @@ criterion = nn.NLLLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
 train_loader = DataLoader(
-    XOR(TRAINING_SIZE, BIT_LEN, VARIABLE_LEN), batch_size=BATCH_SIZE
+    XOR(TRAINING_SIZE, BIT_LEN, 5), batch_size=1
 )
-# x, y = next(iter(train_loader))
+x, y = next(iter(train_loader))
 # print(x.shape, x.dtype)
 # print(y.shape, y.dtype)
+# print(x)
+# print(y)
 # exit(0)
 
 # train
