@@ -5,6 +5,21 @@ from torch import nn
 from tqdm import tqdm
 
 
+def validate(net, dl_val, val_batches, loss_fn=nn.NLLLoss(reduction="sum")):
+    with torch.no_grad():
+        losses = []
+        for x, y in islice(dl_val, val_batches):
+            batch_size, seq_len = y.shape
+            state = net.init_state(std=0, batch_size=batch_size)
+
+            loss = 0
+            for pos in range(seq_len):
+                p, state = net(x[:, pos], state)
+                loss += loss_fn(p, y[:, pos])
+            loss /= batch_size
+            losses.append(loss.item())
+        return losses
+
 class TeacherForcingTrainer:
     def __init__(
         self,
@@ -51,17 +66,7 @@ class TeacherForcingTrainer:
             self.tracker.scalar("train/loss", sum(losses) / len(losses))
             self.tracker.model(self.net)
             self.net.eval()
-            losses.clear()
             with torch.no_grad():
-                for x, y in islice(self.dl_val, self.val_batches):
-                    batch_size, seq_len = y.shape
-                    state = self.net.init_state(std=0, batch_size=batch_size)
-
-                    loss = 0
-                    for pos in range(seq_len):
-                        p, state = self.net(x[:, pos], state)
-                        loss += self.loss_fn(p, y[:, pos])
-                    loss /= batch_size
-                    losses.append(loss.item())
+                losses = validate(self.net, self.dl_val, self.val_batches)
             self.tracker.scalar("val/loss", sum(losses) / len(losses))
         self.tracker.dump()

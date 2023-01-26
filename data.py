@@ -53,13 +53,17 @@ class Seq2SeqDataset(Dataset):
         return x, y
 
 
-def xor_loaders(seq_count, seq_len, batch_size, train_ratio=0.9):
+def xor_loaders(seq_count, seq_len, batch_size, train_ratio=0.9, allow_intermediate=False):
     xs, ys = [], []
     NO_VALUE = -100  # NLLLoss ignores y=-100 by default
     for _ in range(seq_count):
         x = torch.randint(high=2, size=(seq_len,))
         y = torch.full(size=(seq_len,), fill_value=NO_VALUE)
-        y[-1] = x.sum() % 2
+        if allow_intermediate:
+            for i in range(seq_len):
+                y[i] = x[:i].sum() % 2
+        else:
+            y[-1] = x.sum() % 2
         xs.append(x)
         ys.append(y)
     X = torch.stack(xs)
