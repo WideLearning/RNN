@@ -5,7 +5,7 @@ from torch import nn
 from tqdm import tqdm
 
 from data import xor_loaders
-from model import LSTM, RNN
+from rnn import LSTM, RNN
 from TeleBoard.tracker import ConsoleTracker, FileTracker
 from trainer import TeacherForcingTrainer
 

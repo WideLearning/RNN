@@ -48,7 +48,7 @@ class Seq2SeqDataset(Dataset):
         return len(self.x)
 
     def __getitem__(self, idx):
-        x = F.one_hot(self.x[idx], num_classes=self.vocab_size).float()
+        x = F.one_hot(self.x[idx], num_classes=self.vocab_size).float() # sequence length, vocab size
         y = self.y[idx].long()
         return x, y
 

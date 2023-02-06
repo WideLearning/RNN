@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from data import ptb_loaders
-from model import RNN
+from rnn import RNN
 from TeleBoard.tracker import FileTracker
 from trainer import TeacherForcingTrainer
 
