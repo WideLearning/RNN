@@ -2,8 +2,14 @@ import unittest
 
 import torch
 from torch import nn
+
 from rnn import RNN
-from transformer import causal_attention_mask
+from transformer import (
+    LinearAttention,
+    causal_attention_mask,
+    linear_attn,
+    softmax_attn,
+)
 
 
 class TestRNN(unittest.TestCase):
@@ -36,22 +42,33 @@ class TestRNN(unittest.TestCase):
 
 
 class TestTransformer(unittest.TestCase):
-    def test_attention(self):
+    def test_lineat_attn(self):
         n, pos, d = 7, 2, 16
-        attn = nn.MultiheadAttention(embed_dim=d, num_heads=4)
         q = torch.randn((n, d), requires_grad=True)
         k = torch.randn((n, d), requires_grad=True)
         v = torch.randn((n, d), requires_grad=True)
         m = causal_attention_mask(n)
-        
-        y, w = attn(q, k, v, attn_mask=m)
+
+        y = linear_attn(k, v, q, m)
         y[pos].sum().backward()
 
-        self.assertTrue(m.dtype is torch.bool)
+        self.assertTrue(m.dtype is torch.float32)
         self.assertEqual(y.shape, (n, d))
-        self.assertEqual(w.shape, (n, n))
         qg, kg, vg = q.grad.sum(dim=1), k.grad.sum(dim=1), v.grad.sum(dim=1)
         for i in range(n):
             self.assertEqual(qg[i] != 0, i == pos)
-            self.assertEqual(kg[i] != 0, i <= pos)
-            self.assertEqual(vg[i] != 0, i <= pos)
+            self.assertEqual(kg[i] != 0, i < pos)
+            self.assertEqual(vg[i] != 0, i < pos)
+
+    def test_linear_attention(self):
+        n, pos, d_x, d_h, d_y = 7, 2, 16, 10, 4
+        x = torch.randn((n, d_x), requires_grad=True)
+        a = LinearAttention(d_x, d_h, d_y)
+        y = a(x)
+
+        y[pos].sum().backward()
+
+        self.assertEqual(y.shape, (n, d_y))
+        xg = x.grad.sum(dim=1)
+        for i in range(n):
+            self.assertEqual(xg[i] != 0, i <= pos)
