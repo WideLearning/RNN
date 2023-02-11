@@ -37,6 +37,7 @@ def linear_attn(
     returns: float tensor, (m, d_{v})
     """
     n, d_v = V.shape[-2:]
+    n, d_v = V.shape[-2:]
     m, d_kq = Q.shape[-2:]
     if mask is None:
         mask = torch.ones((n, m), device=V.device)

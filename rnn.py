@@ -129,6 +129,7 @@ f_hy: activation for output, logsoftmax by default
 """
 
 
+
 class LSTM(BaseRNN):
     def __init__(self, x_size, h_size, y_size, config):
         super().__init__(x_size, y_size, config)

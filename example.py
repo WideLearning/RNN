@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 from data import ptb_loaders
 from rnn import RNN
-from TeleBoard.tracker import FileTracker
+from teleboard.tracker import FileTracker
 from trainer import TeacherForcingTrainer
 
 dl_train, dl_val = ptb_loaders(

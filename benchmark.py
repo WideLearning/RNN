@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from data import xor_loaders
 from rnn import LSTM, RNN
-from TeleBoard.tracker import ConsoleTracker, FileTracker
+from teleboard.tracker import ConsoleTracker, FileTracker
 from trainer import TeacherForcingTrainer
 
 dl_train, dl_val = xor_loaders(
@@ -30,7 +30,7 @@ trainer = TeacherForcingTrainer(
     make_opt=lambda p: torch.optim.Adam(p),
     dl_train=dl_train,
     dl_val=dl_val,
-    tracker=ConsoleTracker(k=5, regex=".*loss"),
+    tracker=FileTracker(k=5, filename="rnn.p"),
     train_batches=100,
     val_batches=3,
 )
