@@ -12,6 +12,25 @@ def causal_attention_mask(n: int, device="cpu") -> torch.Tensor:
     return torch.tril(torch.ones((n, n), device=device), -1)
 
 
+def _attn(
+    K: torch.Tensor,
+    V: torch.Tensor,
+    Q: torch.Tensor,
+    mask=None,
+):
+    n, d_v = V.shape[-2:]
+    m, d_kq = Q.shape[-2:]
+    if mask is None:
+        mask = torch.ones((n, m), device=V.device)
+    assert V.shape[-2:] == (n, d_v)
+    assert K.shape[-2:] == (n, d_kq)
+    assert Q.shape[-2:] == (m, d_kq)
+    assert mask.shape == (m, n)
+
+    W = (Q @ K.mT) * mask
+    return W, V, d_kq
+
+
 def linear_attn(
     K: torch.Tensor,
     V: torch.Tensor,
@@ -36,19 +55,7 @@ def linear_attn(
         Using ones(n, m) if set to None.
     returns: float tensor, (m, d_{v})
     """
-    n, d_v = V.shape[-2:]
-    n, d_v = V.shape[-2:]
-    m, d_kq = Q.shape[-2:]
-    if mask is None:
-        mask = torch.ones((n, m), device=V.device)
-    assert V.shape[-2:] == (n, d_v)
-    assert K.shape[-2:] == (n, d_kq)
-    assert Q.shape[-2:] == (m, d_kq)
-    assert mask.shape == (m, n)
-
-    W = (Q @ K.T) * mask
-    print(W)
-    V = torch.ones_like(V)
+    W, V, _d_kq = _attn(K, V, Q, mask)
     return W @ V
 
 
@@ -76,16 +83,8 @@ def softmax_attn(
         Using ones(n, m) if set to None.
     returns: float tensor, (m, d_{v})
     """
-    n, d_v = V.shape[-2:]
-    m, d_kq = Q.shape[-2:]
-    if mask is None:
-        mask = torch.ones((n, m), device=V.device)
-    assert V.shape[-2:] == (n, d_v)
-    assert K.shape[-2:] == (n, d_kq)
-    assert Q.shape[-2:] == (m, d_kq)
-    assert mask.shape == (m, n)
-
-    return V @ torch.softmax((K.T @ Q) * mask / torch.sqrt(d_kq), dim=-2)
+    W, V, d_kq = _attn(K, V, Q, mask)
+    return torch.softmax(W / torch.sqrt(d_kq), dim=-2) @ V
 
 
 class LinearAttention(nn.Module):
@@ -114,17 +113,19 @@ class LinearAttention(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        `x`: float tensor, (n, x_size)
+        `x`: float tensor, (..., n, x_size)
 
-        returns: float tensor, (n, y_size)
+        returns: float tensor, (..., n, y_size)
         """
-        n = x.size(0)
-        assert x.shape == (n, self.x_size)
+        n = x.size(-2)
+        assert x.shape[-2:] == (n, self.x_size)
         query = self.W_Q(x)
         key = self.W_K(x)
         value = self.W_V(x)
         mask = causal_attention_mask(n, device=value.device)
-        return linear_attn(key, value, query, mask)
+        result = linear_attn(key, value, query, mask)
+        assert result.shape[-2:] == (n, self.y_size)
+        return result
 
 
 # class SoftmaxAttention(LinearAttention):

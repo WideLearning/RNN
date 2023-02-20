@@ -6,7 +6,7 @@ from tqdm import tqdm
 from data import ptb_loaders
 from rnn import RNN
 from teleboard.tracker import FileTracker
-from trainer import TeacherForcingTrainer
+from trainer import RNNTrainer
 
 dl_train, dl_val = ptb_loaders(
     seq_len=5,
@@ -17,7 +17,7 @@ net = RNN(
     h_size=1024,
     y_size=128,
 )
-trainer = TeacherForcingTrainer(
+trainer = RNNTrainer(
     net=net,
     make_opt=lambda p: torch.optim.Adam(p),
     dl_train=dl_train,

@@ -43,18 +43,21 @@ class TestRNN(unittest.TestCase):
 
 class TestTransformer(unittest.TestCase):
     def test_lineat_attn(self):
-        n, pos, d = 7, 2, 16
-        q = torch.randn((n, d), requires_grad=True)
-        k = torch.randn((n, d), requires_grad=True)
-        v = torch.randn((n, d), requires_grad=True)
+        b, n, pos, d = 10, 7, 2, 16
+        q = torch.randn((b, n, d), requires_grad=True)
+        k = torch.randn((b, n, d), requires_grad=True)
+        v = torch.randn((b, n, d), requires_grad=True)
         m = causal_attention_mask(n)
 
         y = linear_attn(k, v, q, m)
-        y[pos].sum().backward()
+        y[:, pos].sum().backward()
 
         self.assertTrue(m.dtype is torch.float32)
-        self.assertEqual(y.shape, (n, d))
-        qg, kg, vg = q.grad.sum(dim=1), k.grad.sum(dim=1), v.grad.sum(dim=1)
+        self.assertEqual(y.shape, (b, n, d))
+        qg = q.grad.sum(dim=(0, 2))
+        kg = k.grad.sum(dim=(0, 2))
+        vg = v.grad.sum(dim=(0, 2))
+        
         for i in range(n):
             self.assertEqual(qg[i] != 0, i == pos)
             self.assertEqual(kg[i] != 0, i < pos)
