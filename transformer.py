@@ -84,14 +84,14 @@ def softmax_attn(
     returns: float tensor, (m, d_{v})
     """
     W, V, d_kq = _attn(K, V, Q, mask)
-    return torch.softmax(W / torch.sqrt(d_kq), dim=-2) @ V
+    return torch.softmax(W / (d_kq**0.5), dim=-2) @ V
 
 
 class LinearAttention(nn.Module):
     """
     Applies embeddings to get key, value and query from input, then computes dot product attention.
 
-    `LinearAttention(x) = attn(W_{K} x, W_{V} x, W_{Q} x)`
+    `LinearAttention(x) = linear_attn(W_{K} x, W_{V} x, W_{Q} x)`
     """
 
     def __init__(self, x_size: int, h_size: int, y_size: int):
@@ -128,15 +128,56 @@ class LinearAttention(nn.Module):
         return result
 
 
-# class SoftmaxAttention(LinearAttention):
-#     """
-#     Normalized softmax dot product attention.
+class SoftmaxAttention(nn.Module):
+    """
+    Applies embeddings to get key, value and query from input, then computes normalized softmax dot product attention.
 
-#     `Attn(K, V, q) = V softmax(K^{T} q / sqrt(h_size))`
-#     """
+    `SoftmaxAttention(x) = softmax_attn(W_{K} x, W_{V} x, W_{Q} x)`
+    """
 
-#     def __init__(self, x_size: int, h_size: int, y_size: int):
-#         super().__init__(x_size, h_size, y_size)
+    def __init__(self, x_size: int, h_size: int, y_size: int):
+        """
+        `x_size`: int
+            Embedding dimension of input.
+        `h_size`: int
+            Embedding dimension of key and query vectors.
+        `y_size`: int
+            Embedding dimension of value vectors.
+        """
+        super().__init__()
+        self.x_size = x_size
+        self.h_size = h_size
+        self.y_size = y_size
+        self.W_K = nn.Linear(self.x_size, self.h_size)
+        self.W_V = nn.Linear(self.x_size, self.y_size)
+        self.W_Q = nn.Linear(self.x_size, self.h_size)
 
-#     def forward(self, x: torch.Tensor):
-#         y = super().forward(x)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        `x`: float tensor, (..., n, x_size)
+
+        returns: float tensor, (..., n, y_size)
+        """
+        n = x.size(-2)
+        assert x.shape[-2:] == (n, self.x_size)
+        query = self.W_Q(x)
+        key = self.W_K(x)
+        value = self.W_V(x)
+        mask = causal_attention_mask(n, device=value.device)
+        result = softmax_attn(key, value, query, mask)
+        assert result.shape[-2:] == (n, self.y_size)
+        return result
+
+
+class SumParallel(nn.Module):
+    """
+    SumParallel(x) = f(x) + g(x)
+    """
+
+    def __init__(self, f, g):
+        super().__init__()
+        self.f = f
+        self.g = g
+
+    def forward(self, x):
+        return self.f(x) + self.g(x)
